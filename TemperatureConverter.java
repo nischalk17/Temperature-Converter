@@ -1,11 +1,16 @@
-import java.util.Scanner;
+import java.sql.*;
+import java.util.Scanner;   
 
 public class TemperatureConverter {
+    static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
+    static final String DB_URL = "jdbc:mysql://localhost/java_nccs";
     
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        
-        System.out.println("Temperature Converter");
+    static final String USER = "root";
+    static final String PASS = "sisam123";
+    
+    public static void main(String[] args) throws Exception {
+        Scanner scanner = new Scanner(System.in);   
+        System.out.println("Temperature Converter");       
         System.out.println("1. Celsius to Fahrenheit and Kelvin");
         System.out.println("2. Fahrenheit to Celsius and Kelvin");
         System.out.println("3. Kelvin to Celsius and Fahrenheit");
@@ -25,60 +30,85 @@ public class TemperatureConverter {
             default:
                 System.out.println("Invalid choice!");
         }
-        
+
         scanner.close();
     }
-    
-    public static void celsiusToFahrenheitAndKelvin() {
-        Scanner scanner = new Scanner(System.in);
+    // Method to retrieve conversion factor from the database using prepared statement
+public static double getConversionFactor(String conversionType) throws SQLException {
+    Connection conn = null;
+    PreparedStatement stmt = null;
+    double conversionFactor = 0.0;
+    try {
+        Class.forName(JDBC_DRIVER);
+        conn = DriverManager.getConnection(DB_URL, USER, PASS);
         
-        System.out.print("Enter temperature in Celsius: ");
-        double celsius = scanner.nextDouble();
+        String sql = "SELECT conversion_factor FROM temperature_conversion_factors WHERE conversion_type = ?";
+        stmt = conn.prepareStatement(sql);
+        stmt.setString(1, conversionType);
         
-        double fahrenheit = (celsius * 9 / 5) + 32;
-        double kelvin = celsius + 273.15;
-        
-        System.out.println("Temperature in Fahrenheit: " + fahrenheit);
-        System.out.println("Temperature in Kelvin: " + kelvin);
-        
-        scanner.close();
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next()) {
+            conversionFactor = rs.getDouble("conversion_factor");
+        }
+        rs.close();
+    } catch (SQLException se) {
+        se.printStackTrace();
+    } catch (Exception e) {
+        e.printStackTrace();
+    } finally {
+        if (stmt != null) {
+            stmt.close();
+        }
+        if (conn != null) {
+            conn.close();
+        }
     }
-    
-    public static void fahrenheitToCelsiusAndKelvin() {
-        Scanner scanner = new Scanner(System.in);
-        
-        System.out.print("Enter temperature in Fahrenheit: ");
-        double fahrenheit = scanner.nextDouble();
-        
-        double celsius = (fahrenheit - 32) * 5 / 9;
-        double kelvin = (fahrenheit + 459.67) * 5 / 9;
-        
-        System.out.println("Temperature in Celsius: " + celsius);
-        System.out.println("Temperature in Kelvin: " + kelvin);
-        
-        scanner.close();
-    }
-    
-    public static void kelvinToCelsiusAndFahrenheit() {
-        Scanner scanner = new Scanner(System.in);
-        
-        System.out.print("Enter temperature in Kelvin: ");
-        double kelvin = scanner.nextDouble();
-        
-        double celsius = kelvin - 273.15;
-        double fahrenheit = (kelvin * 9 / 5) - 459.67;
-        
-        System.out.println("Temperature in Celsius: " + celsius);
-        System.out.println("Temperature in Fahrenheit: " + fahrenheit);
-        
-        scanner.close();
-    }
+    return conversionFactor;
 }
 
-/* 
-Normal body temperature: 37C or 98.6F
-Boiling Point of water: 373.15K or 100C
-Freezing Point of water: 273.15K or 0C
-Absolute zero: 0K or -273.15C
-Room Temperature as of May9, 2024: 19C
-*/
+// Modify conversion methods to use database retrieval
+public static void celsiusToFahrenheitAndKelvin() throws SQLException {
+    Scanner scanner = new Scanner(System.in);
+    
+    System.out.print("Enter temperature in Celsius: ");
+    double celsius = scanner.nextDouble();
+    
+    double fahrenheit = (celsius * getConversionFactor("Celsius to Fahrenheit")) + 32;
+    double kelvin = celsius + getConversionFactor("Celsius to Kelvin");
+    
+    System.out.println("Temperature in Fahrenheit: " + fahrenheit);
+    System.out.println("Temperature in Kelvin: " + kelvin);
+    
+    scanner.close();
+}
+
+public static void fahrenheitToCelsiusAndKelvin() throws SQLException {
+    Scanner scanner = new Scanner(System.in);
+    
+    System.out.print("Enter temperature in Fahrenheit: ");
+    double fahrenheit = scanner.nextDouble();
+    
+    double celsius = (fahrenheit - 32) * getConversionFactor("Fahrenheit to Celsius");
+    double kelvin = (fahrenheit + 459.67) * (5.0 / 9.0);
+    
+    System.out.println("Temperature in Celsius: " + celsius);
+    System.out.println("Temperature in Kelvin: " + kelvin);
+    
+    scanner.close();
+}
+
+public static void kelvinToCelsiusAndFahrenheit() throws SQLException {
+    Scanner scanner = new Scanner(System.in);
+    
+    System.out.print("Enter temperature in Kelvin: ");
+    double kelvin = scanner.nextDouble();
+    
+    double celsius = kelvin + getConversionFactor("Kelvin to Celsius");
+    double fahrenheit = (kelvin * 1.8) - 459.67; // Convert Kelvin directly to Fahrenheit
+    
+    System.out.println("Temperature in Celsius: " + celsius);
+    System.out.println("Temperature in Fahrenheit: " + fahrenheit);
+    
+    scanner.close();
+}
+}
